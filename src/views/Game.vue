@@ -108,13 +108,11 @@ const loadSongs = async () => {
   try {
     const response = await fetch('/assets/yangqianhua-best-songs.json')
     const data = await response.json()
-    console.warn(data);
     
     const filteredSongs: Song[] = []
     
     data.forEach((song: any, idx) => {
       const parsedLyrics = [...song.parsedLyrics]
-      console.warn(idx);
       
       // 查找包含"我"字且"我"不是第一或第二个字的歌词行
       for (let i = 0; i < parsedLyrics.length; i++) {
@@ -126,9 +124,7 @@ const loadSongs = async () => {
         if (woIndex > 1) {
           // 找到符合条件的歌词，截取这句和之后的所有歌词
           const selectedLyrics = parsedLyrics.slice(i).join('')
-          
-          console.warn(song.name);
-          
+                   
           filteredSongs.push({
             name: song.name,
             lyrics: selectedLyrics,
