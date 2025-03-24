@@ -136,8 +136,8 @@ const loadSongs = async () => {
       }
     })
     
-    // 随机选择10首歌并打乱顺序
-    songs.value = shuffleArray(filteredSongs).slice(0, 10)
+    // 随机选择9首歌并打乱顺序
+    songs.value = shuffleArray(filteredSongs).slice(0, 9)
     
     createScrolls()
   } catch (error) {
