@@ -62,6 +62,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { remToPx } from '@/ults/index'
 import ScrollItem from '@/components/ScrollItem.vue'
 import ResultDialog from '@/components/ResultDialog.vue'
+import { debounce } from 'lodash-es'
 
 // 类型定义
 interface Song {
@@ -109,37 +110,20 @@ const loadSongs = async () => {
     const response = await fetch('/assets/yangqianhua-best-songs.json')
     const data = await response.json()
     
-    const filteredSongs: Song[] = []
+    // 使用 Web Worker 处理数据
+    const worker = new Worker(new URL('./songWorker.ts', import.meta.url))
+    worker.postMessage({ songs: data })
     
-    data.forEach((song: any, idx) => {
-      const parsedLyrics = [...song.parsedLyrics]
-      
-      // 查找包含"我"字且"我"不是第一或第二个字的歌词行
-      for (let i = 0; i < parsedLyrics.length; i++) {
-        const text = parsedLyrics[i]
-        const woIndex = text.indexOf('我')
-        
-        // 检查是否包含"我"字，且"我"不是第一或第二个字
-        
-        if (woIndex > 1) {
-          // 找到符合条件的歌词，截取这句和之后的所有歌词
-          const selectedLyrics = parsedLyrics.slice(i).join('')
-                   
-          filteredSongs.push({
-            name: song.name,
-            lyrics: selectedLyrics,
-          })
-          
-          // 处理完这首歌，跳出循环
-          break
-        }
-      }
-    })
+    worker.onmessage = (e) => {
+      const filteredSongs = e.data
+      songs.value = shuffleArray(filteredSongs).slice(0, 9)
+      createScrolls()
+    }
     
-    // 随机选择9首歌并打乱顺序
-    songs.value = shuffleArray(filteredSongs).slice(0, 9)
-    
-    createScrolls()
+    worker.onerror = (error) => {
+      console.error('Worker error:', error)
+      gameMessage.value = '加载游戏数据失败，请刷新页面重试。'
+    }
   } catch (error) {
     console.error('加载游戏数据失败:', error)
     gameMessage.value = '加载游戏数据失败，请刷新页面重试。'
@@ -182,37 +166,54 @@ const handleStartDrag = ({ event, index }: { event: MouseEvent | TouchEvent, ind
 const drag = (e: MouseEvent | TouchEvent) => {
   if (!isDragging.value) return
 
-  if (scrolls.value[dragScrollIndex.value] && scrolls.value[dragScrollIndex.value].isBroken) return
+  if (scrolls.value[dragScrollIndex.value]?.isBroken) return
   
   const currentX = e.type === 'mousemove' ? (e as MouseEvent).clientX : (e as TouchEvent).touches[0].clientX
   const diffX = startX.value - currentX
   const scroll = scrolls.value[dragScrollIndex.value]
   
-  let newWidth = Math.max(INIT_WIDTH, Math.min(scroll.maxWidth, startWidth.value + diffX))
+  // 计算新宽度
+  const newWidth = Math.max(INIT_WIDTH, Math.min(scroll.maxWidth, startWidth.value + diffX))
   
+  // 检查是否有新的"我"字出现
+  const oldVisibleChars = Math.floor((scroll.width - INIT_WIDTH) / PIXELS_PER_CHAR)
+  const newVisibleChars = Math.floor((newWidth - INIT_WIDTH) / PIXELS_PER_CHAR)
+  
+  // 更新宽度
   scrolls.value[dragScrollIndex.value].width = newWidth
-  updateVisibleText(dragScrollIndex.value)
-  checkForBreakingChar(dragScrollIndex.value)
+  
+  // 如果字符数量变化，需要更新文本并检查"我"字
+  if (newVisibleChars !== oldVisibleChars) {
+    // 直接更新文本，不使用 debounce
+    updateVisibleTextImmediately(dragScrollIndex.value)
+  }
   
   e.preventDefault()
 }
 
+// 直接更新文本的函数，不使用 debounce
+const updateVisibleTextImmediately = (index: number) => {
+  const scroll = scrolls.value[index]
+  if (!scroll) return
+  
+  const visibleChars = Math.floor((scroll.width - INIT_WIDTH) / PIXELS_PER_CHAR)
+  
+  wordCount.value -= scroll.visibleText.length
+  scroll.visibleText = visibleChars <= 0 ? '' : scroll.lyrics.substring(0, visibleChars)
+  wordCount.value += scroll.visibleText.length
+  
+  // 立即检查是否包含"我"字
+  if (scroll.visibleText.includes('我')) {
+    breakScroll(index)
+  }
+}
+
+// 保留 debounce 版本用于性能优化的场景
+const updateVisibleText = debounce(updateVisibleTextImmediately, 16)
+
 const endDrag = () => {
   isDragging.value = false
   dragScrollIndex.value = -1
-}
-
-const updateVisibleText = (index: number) => {
-  const scroll = scrolls.value[index]
-  const visibleChars = Math.floor((scroll.width - INIT_WIDTH) / PIXELS_PER_CHAR)
-  
-  wordCount.value -= scrolls.value[index].visibleText.length
-  if (visibleChars <= 0) {
-    scrolls.value[index].visibleText = ''
-  } else {
-    scrolls.value[index].visibleText = scroll.lyrics.substring(0, visibleChars)
-  }
-  wordCount.value += scrolls.value[index].visibleText.length
 }
 
 const checkForBreakingChar = (index: number) => {
@@ -261,15 +262,15 @@ const restartGame = () => {
 onMounted(() => {
   loadSongs()
   
-  document.addEventListener('mousemove', drag as (e: Event) => void)
-  document.addEventListener('touchmove', drag as (e: Event) => void, { passive: false })
+  document.addEventListener('mousemove', drag)
+  document.addEventListener('touchmove', drag, { passive: false })
   document.addEventListener('mouseup', endDrag)
   document.addEventListener('touchend', endDrag)
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('mousemove', drag as (e: Event) => void)
-  document.removeEventListener('touchmove', drag as (e: Event) => void)
+  document.removeEventListener('mousemove', drag)
+  document.removeEventListener('touchmove', drag)
   document.removeEventListener('mouseup', endDrag)
   document.removeEventListener('touchend', endDrag)
 })
@@ -331,6 +332,12 @@ onBeforeUnmount(() => {
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: #b39ddb transparent;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  contain: content;
+  content-visibility: auto;
 }
 
 .scrolls-container::-webkit-scrollbar {
@@ -344,6 +351,15 @@ onBeforeUnmount(() => {
 .scrolls-container::-webkit-scrollbar-thumb {
   background-color: #b39ddb;
   border-radius: 6px;
+}
+
+.scroll-item {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  contain: content;
+  content-visibility: auto;
 }
 
 @media (max-width: 768px) {
@@ -375,6 +391,18 @@ onBeforeUnmount(() => {
   .status-chip {
     margin: 5px !important;
     font-size: 0.85rem !important;
+  }
+}
+
+/* 优化触摸设备性能 */
+@media (hover: none) {
+  .scroll-item {
+    touch-action: pan-x;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .scrolls-container {
+    -webkit-overflow-scrolling: touch;
   }
 }
 </style> 
