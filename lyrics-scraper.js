@@ -291,9 +291,11 @@ function parseLyricTimeline(lrc) {
   for (const line of lines) {
     // 去掉时间戳，只保留歌词文本
     const text = line.replace(timelineRegex, '').trim();
+    // 将普通空格替换为全角空格
+    const textWithFullWidthSpaces = text.replace(/ /g, '　');
     // 只添加非空歌词
-    if (text) {
-      parsedLyrics.push(text);
+    if (textWithFullWidthSpaces) {
+      parsedLyrics.push(textWithFullWidthSpaces);
     }
   }
   
