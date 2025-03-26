@@ -138,7 +138,7 @@ const loadSongs = async () => {
     return new Promise<void>((resolve, reject) => {
       worker.onmessage = (e) => {
         const filteredSongs = e.data as Song[]
-        songs.value = shuffleArray(filteredSongs).slice(0, 9)
+        songs.value = shuffleArray(filteredSongs).slice(0, 8)
         createScrolls()
         resolve()
       }
