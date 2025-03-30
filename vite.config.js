@@ -7,7 +7,7 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      '@': '/src'
+      '@': path.resolve(__dirname, 'src')
     }
   },
   build: {
@@ -17,7 +17,7 @@ export default defineConfig({
     assetsDir: ''
   },
   server: {
-    port: 8080,
+    port: 5173,
     open: true
   }
 })

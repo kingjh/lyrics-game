@@ -42,9 +42,6 @@ const EXCLUDED_ROLES = [
   '母带',
 ];
 
-// Apple Music 杨千嬅代表作歌单URL
-const appleMusicUrl = 'https://music.apple.com/cn/playlist/%E6%A5%8A%E5%8D%83%E5%AC%85%E4%BB%A3%E8%A1%A8%E4%BD%9C/pl.0fc1d9aeed114d02a4dc9043f275fe8a';
-
 // 网易云音乐API
 const neteaseApiUrl = 'https://music.163.com/api/song/lyric';
 
@@ -56,14 +53,9 @@ const axiosInstance = axios.create({
   httpsAgent: socksAgent
 });
 
-/**
- * 获取杨千嬅代表作歌曲列表
- */
-async function getSongListFromAppleMusic() {
-  console.log('获取歌单...');
-  
-  // 歌单
-  const songs = [
+// 歌单数据
+const songLists = {
+  "杨千嬅": [
     { order: "1", name: "野孩子", artist: "杨千嬅" },
     { order: "2", name: "勇", artist: "杨千嬅" },
     { order: "3", name: "少女的祈祷", artist: "杨千嬅" },
@@ -84,9 +76,44 @@ async function getSongListFromAppleMusic() {
     { order: "18", name: "single", artist: "杨千嬅" },
     { order: "19", name: "最好的债", artist: "杨千嬅" },
     { order: "20", name: "一千零一个", artist: "杨千嬅" },
-  ];
+  ],
+  "张国荣": [
+    { order: "1", name: "倩女幽魂", artist: "张国荣" },
+    { order: "2", name: "风继续吹", artist: "张国荣" },
+    { order: "3", name: "沉默是金", artist: "张国荣" },
+    { order: "4", name: "谁令你心痴", artist: "张国荣" },
+    { order: "5", name: "我", artist: "张国荣" },
+    { order: "6", name: "Monica", artist: "张国荣" },
+    { order: "7", name: "当年情", artist: "张国荣" },
+    { order: "8", name: "春夏秋冬", artist: "张国荣" },
+    { order: "9", name: "共同渡过", artist: "张国荣" },
+    { order: "10", name: "风再起时", artist: "张国荣" },
+    { order: "11", name: "侧面", artist: "张国荣" },
+    { order: "12", name: "夜半歌声", artist: "张国荣" },
+    { order: "13", name: "追", artist: "张国荣" },
+    { order: "14", name: "无心睡眠", artist: "张国荣" },
+    { order: "15", name: "怪你过分美丽", artist: "张国荣" },
+    { order: "16", name: "心跳呼吸正常", artist: "张国荣" },
+    { order: "17", name: "玻璃之情", artist: "张国荣" },
+    { order: "18", name: "想你", artist: "张国荣" },
+    { order: "19", name: "左右手", artist: "张国荣" },
+    { order: "20", name: "有心人", artist: "张国荣" },
+  ]
+};
+
+/**
+ * 获取指定歌手的代表作歌曲列表
+ */
+async function getSongList(artist) {
+  console.log(`获取${artist}的歌单...`);
   
-  return songs;
+  // 歌单
+  if (songLists[artist]) {
+    return songLists[artist];
+  } else {
+    console.log(`未找到歌手${artist}的歌单数据`);
+    return [];
+  }
 }
 
 /**
@@ -284,12 +311,12 @@ function parseLyricTimeline(lrc) {
   if (!lrc) return [];
   
   const lines = lrc.split('\n');
-  const timelineRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+  const timelineRegex = /\[\d+:\d+(\.\d+)?\]/g;
   const parsedLyrics = [];
   
   // 处理歌词，去掉时间戳
   for (const line of lines) {
-    // 去掉时间戳，只保留歌词文本
+    // 去掉所有时间戳，只保留歌词文本
     const text = line.replace(timelineRegex, '').trim();
     // 将普通空格替换为全角空格
     const textWithFullWidthSpaces = text.replace(/ /g, '　');
@@ -306,12 +333,29 @@ function parseLyricTimeline(lrc) {
  * 主函数
  */
 async function main() {
+  // 获取命令行参数
+  const artist = process.argv[2];
+  
+  // 检查是否提供了歌手名
+  if (!artist) {
+    console.log('请提供歌手名作为参数，例如: node lyrics-scraper.js 杨千嬅');
+    console.log('当前支持的歌手: 杨千嬅, 张国荣');
+    return;
+  }
+  
+  // 检查歌手是否在支持列表中
+  if (!songLists[artist]) {
+    console.log(`暂不支持歌手: ${artist}`);
+    console.log('当前支持的歌手: 杨千嬅, 张国荣');
+    return;
+  }
+  
   try {
-    console.log('===== 杨千嬅代表作歌词获取工具 =====');
+    console.log(`===== ${artist}代表作歌词获取工具 =====`);
     console.log('开始获取歌词...');
     
     // 获取歌曲列表
-    const songs = await getSongListFromAppleMusic();
+    const songs = await getSongList(artist);
     
     console.log(`共获取到 ${songs.length} 首歌曲，开始获取歌词...`);
     
@@ -383,7 +427,7 @@ async function main() {
     }
     
     // 保存结果到JSON文件
-    const outputPath = path.join(__dirname, './public/assets/yangqianhua-best-songs.json');
+    const outputPath = path.join(__dirname, `./public/assets/${artist}.json`);
     fs.writeFileSync(outputPath, JSON.stringify(songsWithLyrics, null, 2), 'utf8');
     
     console.log('\n===== 处理完成 =====');

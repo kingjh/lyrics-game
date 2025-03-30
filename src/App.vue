@@ -1,5 +1,5 @@
 <template>
-  <v-app class="purple-theme">
+  <v-app>
     <router-view></router-view>
   </v-app>
 </template>
@@ -28,40 +28,27 @@ body {
   display: none !important;
 }
 
+/* 紫色主题 */
 .purple-theme {
   --light-purple: #e6e0fa;
   --medium-purple: #d4c6f5;
   --dark-purple: #b39ddb;
   --accent-purple: #9575cd;
-  
-  background: var(--light-purple);
+  --primary: #7e57c2;
+  --secondary: #b39ddb;
 }
 
-/* 扁长形状使用线性渐变 */
-.v-card, .v-chip, .v-btn {
-  background: linear-gradient(to right, var(--light-purple), var(--medium-purple)) !important;
-  border-color: var(--dark-purple) !important;
+/* 红色主题 */
+.red-theme {
+  --light-red: #ffebee;
+  --medium-red: #ffcdd2;
+  --dark-red: #ef9a9a;
+  --accent-red: #ef5350;
+  --primary: #e53935;
+  --secondary: #ef9a9a;
 }
 
-/* 正方形/接近正方形的形状使用径向渐变 */
-.v-card.square, .v-avatar, .v-dialog .v-card {
-  background: radial-gradient(circle, var(--light-purple), var(--medium-purple)) !important;
-}
-
-/* 强调色 */
-.v-btn.primary {
-  background: linear-gradient(to right, var(--dark-purple), var(--accent-purple)) !important;
-  color: white !important;
-  border-radius: 16px !important; /* 按钮圆角矩形 */
-}
-
-.v-btn.secondary {
-  background: linear-gradient(to right, var(--medium-purple), var(--dark-purple)) !important;
-  color: #424242 !important;
-  border-radius: 16px !important; /* 按钮圆角矩形 */
-}
-
-/* 所有按钮圆角矩形 */
+/* 通用按钮样式 */
 .v-btn {
   border-radius: 16px !important;
   height: 42px !important;
@@ -72,13 +59,6 @@ body {
 /* 文本颜色 */
 .v-card-title, .v-card-subtitle, .theme--light.v-btn {
   color: #424242 !important;
-}
-
-/* 给对话框添加特殊样式 */
-.v-dialog .v-card {
-  border: 2px solid var(--accent-purple) !important;
-  border-radius: 20px !important;
-  overflow: hidden;
 }
 
 /* 消除滚动条 */

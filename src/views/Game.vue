@@ -1,17 +1,17 @@
 <template>
-  <v-main class="game-main">
+  <v-main :class="['game-main', themeClass]">
     <v-container fluid class="pa-0 fill-height">
       <v-row no-gutters class="fill-height">
         <v-col cols="12">
-          <v-card-title class="justify-center game-title">
+          <v-card-title :class="['justify-center', 'game-title', themeClass]">
             <h1 class="text-h4 font-weight-bold text-center">{{ GAME_NAME }}</h1>
           </v-card-title>
-          <v-card-subtitle style="white-space: pre-line;" class="game-subtitle font-weight-bold mt-4 mx-4">
+          <v-card-subtitle style="white-space: pre-line;" :class="['game-subtitle', 'font-weight-bold', 'mt-4', 'mx-4', themeClass]">
             {{ gameMessage }}
           </v-card-subtitle>
           <v-card-actions class="justify-center flex-column" v-if="isGameOver">
             <v-btn 
-              color="primary" 
+              :color="themeColor" 
               @click="showResultDialog = true"
               class="view-score-btn"
             >
@@ -20,22 +20,24 @@
           </v-card-actions>
           <v-card-text>
             <v-row justify="center">
-              <v-chip class="ma-2 status-chip" color="primary" outlined>
+              <v-chip class="ma-2 status-chip" :color="themeColor" outlined>
                 还可以弄断 {{ MAX_BROKEN_SCROLLS_COUNT - brokenCount }} 支签
               </v-chip>
-              <v-chip class="ma-2 status-chip" color="primary" outlined>
+              <v-chip class="ma-2 status-chip" :color="themeColor" outlined>
                 总拉出字数: {{ wordCount }}
               </v-chip>
             </v-row>
           </v-card-text>
           
           <v-card-text class="flex-grow-1 d-flex align-center justify-center">
-            <div class="scrolls-container">
+            <div :class="['scrolls-container', themeClass]">
               <scroll-item
                 v-for="(scroll, index) in scrolls"
                 :key="index"
                 :scroll="scroll"
                 :is-game-over="isGameOver"
+                :theme-color="themeColor"
+                :theme-class="themeClass"
                 @start-drag="handleStartDrag"
               />
             </div>
@@ -52,6 +54,9 @@
       :broken-scrolls="brokenScrolls"
       :collected-lyrics="collectedLyrics"
       :game-name="GAME_NAME"
+      :artist="artist"
+      :theme-color="themeColor"
+      :theme-class="themeClass"
       @restart="restartGame"
     />
 
@@ -63,20 +68,33 @@
       content-class="loading-dialog"
       overlay-opacity="0.8"
     >
-      <v-card color="primary" dark class="text-center pa-4">
+      <v-card :color="themeColor" dark class="text-center pa-4">
         <v-progress-circular indeterminate color="white" size="64"></v-progress-circular>
         <p class="mt-3 white--text">加载中...</p>
       </v-card>
     </v-dialog>
+
+    <!-- 返回按钮 -->
+    <div class="back-button">
+      <v-btn 
+        :color="themeColor" 
+        fab
+        small
+        @click="goBack"
+      >
+        <v-icon>mdi-arrow-left</v-icon>
+      </v-btn>
+    </div>
   </v-main>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { remToPx } from '@/ults/index'
 import ScrollItem from '@/components/ScrollItem.vue'
 import ResultDialog from '@/components/ResultDialog.vue'
 import { debounce } from 'lodash-es'
+import { useRoute, useRouter } from 'vue-router'
 
 // 类型定义
 interface Song {
@@ -98,8 +116,22 @@ interface Scroll {
 const PIXELS_PER_CHAR = 14
 const INIT_WIDTH = 136
 const MAX_BROKEN_SCROLLS_COUNT = 3
-const GAME_NAME = '千fa抽签'
-const INIT_MESSAGE = `下面是一些签筒，筒外是歌名，筒里装着的是这歌某句歌词的签。\n可以推拉把手控制歌词。\n出现"我"字的话这签会断掉，不能再推拉了！\n断${MAX_BROKEN_SCROLLS_COUNT}支签后游戏结束，拉出的歌词越多越厉害！`
+const GAME_NAME = '热字切歌'
+const route = useRoute()
+const router = useRouter()
+
+// 从路由参数获取主题和热字
+const artist = ref(route.params.artist as string || '杨千嬅')
+const hotWord = ref(route.query.hotWord as string || '我')
+const themeColor = ref(route.query.theme as string || 'primary')
+const themeClass = computed(() => {
+  return themeColor.value === 'red' ? 'red-theme' : 'purple-theme'
+})
+
+const INIT_MESSAGE = computed(() => {
+  return `下面是一些签筒，筒外是歌名，筒里装着的是这歌某句歌词的签。\n可以推拉把手控制歌词。\n出现"${hotWord.value}"字的话这签会断掉，不能再推拉了！\n断${MAX_BROKEN_SCROLLS_COUNT}支签后游戏结束，拉出的歌词越多越厉害！`
+})
+
 // 拖动减速系数，值越小拖动越慢
 const dragSpeedFactor = 0.4
 
@@ -111,7 +143,7 @@ const collectedLyrics = ref<string[]>([])
 const brokenCount = ref(0)
 const wordCount = ref(0)
 const isGameOver = ref(false)
-const gameMessage = ref(INIT_MESSAGE)
+const gameMessage = ref('')
 const showResultDialog = ref(false)
 const isLoading = ref(false)
 
@@ -128,11 +160,77 @@ const touchMoveHandler = (e: Event) => drag(e as TouchEvent)
 // 方法
 const loadSongs = async () => {
   try {
-    const response = await fetch('/assets/yangqianhua-best-songs.json')
+    // 根据选择的歌手加载不同的JSON文件
+    const jsonFile = artist.value === '张国荣' ? '/assets/张国荣.json' : '/assets/杨千嬅.json'
+    const response = await fetch(jsonFile)
     const data = await response.json()
     
     // 使用 Web Worker 处理数据
-    const worker = new Worker(new URL('./songWorker.ts', import.meta.url))
+    const hotWordValue = hotWord.value; // 先获取热字值
+    console.log("当前热字:", hotWordValue);
+    const workerCode = `
+      self.onmessage = function(e) {
+        const songs = e.data.songs;
+        const hotWord = "${hotWordValue}"; // 使用双引号包裹变量
+        
+        console.log("开始处理歌曲数据，热字:", hotWord);
+        
+        if (!songs || !Array.isArray(songs)) {
+          console.error("没有收到有效的歌曲数据");
+          self.postMessage([]);
+          return;
+        }
+        
+        try {
+          console.log("接收到歌曲数量:", songs.length);
+          
+          // 处理歌曲数据，确保每首歌都有歌名和歌词
+          const processedSongs = songs
+            .filter(song => 
+              song && 
+              typeof song.name === 'string' && 
+              song.parsedLyrics && 
+              Array.isArray(song.parsedLyrics) && 
+              song.parsedLyrics.length > 0
+            )
+            .map(song => {
+              // 从parsedLyrics中查找包含热字的歌词行
+              let foundLyric = null;
+              
+              // 首先尝试找包含热字的行
+              for (let i = 0; i < song.parsedLyrics.length; i++) {
+                const line = song.parsedLyrics[i];
+                if (line.length > 5 && line.includes(hotWord) && line.indexOf(hotWord) > 1) {
+                  foundLyric = line;
+                  break;
+                }
+              }
+              
+              // 如果没找到包含热字的行，返回null表示不选择这首歌
+              if (!foundLyric) {
+                return null;
+              }
+              
+              return {
+                name: song.name.trim(),
+                lyrics: foundLyric.trim()
+              };
+            })
+            .filter(song => song !== null) // 过滤掉没有热字的歌
+          
+          console.log("处理后的歌曲数量:", processedSongs.length);
+          
+          // 将处理后的数据发送回主线程
+          self.postMessage(processedSongs);
+        } catch (error) {
+          console.error('处理歌曲数据时出错:', error);
+          self.postMessage([]);
+        }
+      };
+    `;
+    
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
     worker.postMessage({ songs: data })
     
     return new Promise<void>((resolve, reject) => {
@@ -224,8 +322,8 @@ const updateVisibleText = debounce((index: number) => {
   scroll.visibleText = rawText
   wordCount.value += scroll.visibleText.replace(/\s/g, '').length
   
-  // 立即检查是否包含"我"字
-  if (scroll.visibleText.includes('我')) {
+  // 立即检查是否包含热字
+  if (scroll.visibleText.includes(hotWord.value)) {
     breakScroll(index)
   }
 }, 8) // 缩短等待时间到8ms，提高响应速度
@@ -240,7 +338,7 @@ const checkForBreakingChar = (index: number) => {
   
   if (scroll.isBroken) return
   
-  if (scroll.visibleText.includes('我')) {
+  if (scroll.visibleText.includes(hotWord.value)) {
     breakScroll(index)
   }
 }
@@ -272,7 +370,7 @@ const restartGame = () => {
   wordCount.value = 0
   isGameOver.value = false
   showResultDialog.value = false
-  gameMessage.value = INIT_MESSAGE
+  gameMessage.value = INIT_MESSAGE.value
   
   // 直接加载新歌曲，不使用嵌套的setTimeout
   loadSongs()
@@ -283,9 +381,15 @@ const restartGame = () => {
     })
 }
 
+// 返回主页
+const goBack = () => {
+  router.push({ name: 'Home' })
+}
+
 // 生命周期钩子
 onMounted(() => {
   isLoading.value = true
+  gameMessage.value = INIT_MESSAGE.value
   loadSongs()
     .finally(() => {
       setTimeout(() => {
@@ -310,11 +414,18 @@ onBeforeUnmount(() => {
 <style scoped>
 /* 游戏相关样式 */
 .game-main {
-  background: radial-gradient(circle, #f0ebfd, #e6e0fa);
   min-height: 100vh;
   height: 100vh;
   overflow: hidden;
   position: relative;
+}
+
+.game-main.purple-theme {
+  background: radial-gradient(circle, #f0ebfd, #e6e0fa);
+}
+
+.game-main.red-theme {
+  background: radial-gradient(circle, #ffebee, #ffcdd2);
 }
 
 /* 加载对话框样式 */
@@ -325,24 +436,38 @@ onBeforeUnmount(() => {
 
 :deep(.v-card.loading-dialog) {
   border-radius: 16px;
-  background: rgba(126, 87, 194, 0.9) !important;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
 }
 
 .game-title {
-  background: linear-gradient(to right, #9575cd, #7e57c2) !important;
   color: white !important;
   padding: 16px !important;
   margin-bottom: 5px;
 }
 
+.game-title.purple-theme {
+  background: linear-gradient(to right, #9575cd, #7e57c2) !important;
+}
+
+.game-title.red-theme {
+  background: linear-gradient(to right, #ef5350, #e53935) !important;
+}
+
 .game-subtitle {
-  background: linear-gradient(to right, #e6e0fa, #d4c6f5) !important;
   padding: 10px 15px !important;
   border-radius: 8px;
   margin: 0 15px 5px 15px;
-  border: 1px solid #b39ddb;
   font-size: 0.9rem !important;
+}
+
+.game-subtitle.purple-theme {
+  background: linear-gradient(to right, #e6e0fa, #d4c6f5) !important;
+  border: 1px solid #b39ddb;
+}
+
+.game-subtitle.red-theme {
+  background: linear-gradient(to right, #ffebee, #ffcdd2) !important;
+  border: 1px solid #ef9a9a;
 }
 
 .view-score-btn {
@@ -355,8 +480,6 @@ onBeforeUnmount(() => {
 }
 
 .status-chip {
-  background: linear-gradient(to right, #e6e0fa, #d4c6f5) !important;
-  border: 1px solid #9575cd !important;
   padding: 0 16px !important;
 }
 
@@ -367,20 +490,29 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 500px;
   padding: 15px;
-  background: radial-gradient(circle, #f8f5fe, #f0ebfd);
   border-radius: 12px;
-  border: 1px solid #d4c6f5;
   max-height: calc(100vh - 220px);
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #b39ddb transparent;
   will-change: transform;
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
   contain: content;
   content-visibility: auto;
+}
+
+.scrolls-container.purple-theme {
+  background: radial-gradient(circle, #f8f5fe, #f0ebfd);
+  border: 1px solid #d4c6f5;
+  scrollbar-color: #b39ddb transparent;
+}
+
+.scrolls-container.red-theme {
+  background: radial-gradient(circle, #fff5f5, #ffebee);
+  border: 1px solid #ffcdd2;
+  scrollbar-color: #ef9a9a transparent;
 }
 
 .scrolls-container::-webkit-scrollbar {
@@ -391,8 +523,13 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
-.scrolls-container::-webkit-scrollbar-thumb {
+.scrolls-container.purple-theme::-webkit-scrollbar-thumb {
   background-color: #b39ddb;
+  border-radius: 6px;
+}
+
+.scrolls-container.red-theme::-webkit-scrollbar-thumb {
+  background-color: #ef9a9a;
   border-radius: 6px;
 }
 
@@ -403,6 +540,13 @@ onBeforeUnmount(() => {
   perspective: 1000px;
   contain: content;
   content-visibility: auto;
+}
+
+.back-button {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
 }
 
 @media (max-width: 768px) {
@@ -434,6 +578,11 @@ onBeforeUnmount(() => {
   .status-chip {
     margin: 5px !important;
     font-size: 0.85rem !important;
+  }
+  
+  .back-button {
+    top: 10px;
+    left: 10px;
   }
 }
 

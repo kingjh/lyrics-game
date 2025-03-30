@@ -1,17 +1,17 @@
 <template>
   <div class="scroll-wrapper">
     <div 
-      :class="['scroll', {'broken': scroll.isBroken}]" 
+      :class="['scroll', {'broken': scroll.isBroken}, themeClass]" 
       :style="{width: scroll.width + 'px'}"
     >
       <div 
-        class="scroll-handle" 
+        :class="['scroll-handle', themeClass]" 
         @mousedown="startDrag($event)"
         @touchstart="startDrag($event)"
       ></div>
       <div class="scroll-content font-weight-bold">{{ scroll.lyrics }}</div>
     </div>
-    <div class="scroll-title">{{ scroll.name }}</div>
+    <div :class="['scroll-title', themeClass]">{{ scroll.name }}</div>
   </div>
 </template>
 
@@ -36,6 +36,14 @@ const props = defineProps({
   isGameOver: {
     type: Boolean,
     default: false
+  },
+  themeColor: {
+    type: String,
+    default: 'primary'
+  },
+  themeClass: {
+    type: String,
+    default: 'purple-theme'
   }
 })
 
@@ -65,7 +73,6 @@ const startDrag = (e: MouseEvent | TouchEvent) => {
 .scroll {
   position: relative;
   height: 40px;
-  background: linear-gradient(to right, #e6e0fa, #d4c6f5);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -74,12 +81,29 @@ const startDrag = (e: MouseEvent | TouchEvent) => {
   align-items: center;
   padding-right: 10px;
   margin-left: auto;
+}
+
+.scroll.purple-theme {
+  background: linear-gradient(to right, #e6e0fa, #d4c6f5);
   border: 1px solid #b39ddb;
 }
 
+.scroll.red-theme {
+  background: linear-gradient(to right, #ffebee, #ffcdd2);
+  border: 1px solid #ef9a9a;
+}
+
 .scroll.broken {
-  background: linear-gradient(to right, #ffe0f0, #ffccd5);
   cursor: not-allowed;
+}
+
+.scroll.broken.purple-theme {
+  background: linear-gradient(to right, #ffe0f0, #ffccd5);
+  border: 1px solid #ff6b6b;
+}
+
+.scroll.broken.red-theme {
+  background: linear-gradient(to right, #ffe0f0, #ffccd5);
   border: 1px solid #ff6b6b;
 }
 
@@ -90,10 +114,17 @@ const startDrag = (e: MouseEvent | TouchEvent) => {
   padding: 8px;
   border-radius: 0 8px 8px 0;
   z-index: 2;
-  background: radial-gradient(circle, #9575cd, #7e57c2);
   font-weight: bold;
   color: white;
   text-align: right;
+}
+
+.scroll-title.purple-theme {
+  background: radial-gradient(circle, #9575cd, #7e57c2);
+}
+
+.scroll-title.red-theme {
+  background: radial-gradient(circle, #ef5350, #e53935);
 }
 
 .scroll-content {
@@ -108,12 +139,19 @@ const startDrag = (e: MouseEvent | TouchEvent) => {
 .scroll-handle {
   width: 20px;
   height: 40px;
-  background-color: #b39ddb;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   z-index: 3;
+}
+
+.scroll-handle.purple-theme {
+  background-color: #b39ddb;
+}
+
+.scroll-handle.red-theme {
+  background-color: #ef9a9a;
 }
 
 .scroll-handle::after {
