@@ -12,13 +12,13 @@
         歌詞卡片
       </v-card-title>
       
-      <v-card-text class="card-content">
-        <div v-if="isLoading" class="loading-container">
+      <v-card-text class="d-flex">
+        <div v-if="isLoading" class="loading-container text-center align-center justify-center flex-column" style="width: 100%; height: 300px;">
           <v-progress-circular indeterminate :color="themeColor" size="64"></v-progress-circular>
           <p class="mt-3">生成中...</p>
         </div>
         
-        <div v-else-if="htmlContent" class="html-container" v-html="htmlContent"></div>
+        <div v-else-if="htmlContent" class="html-container w-100" v-html="htmlContent"></div>
         
         <div v-else class="error-container">
           <p>生成失敗，請重試</p>
@@ -120,11 +120,11 @@ const generateLyricsCard = async () => {
 根据用户输入的话题，先把话题翻译成英文，然后用150字以内的故事（引用著名文学或影视作品）拆解其中的深层含义。
 然后用HTML创建一个优雅的文字卡片表现这个话题。
 设计要求：
-1.所有中文字必须使用繁体。
+1.所有輸出的中文必須爲繁體中文，禁止使用簡體中文。
 2.主题字体不要超过24px大小，正文使用16px左右。
 3.卡片背景风格素雅，模仿纸张质感。
 4.主题颜色用'${props.themeColor}'
-5.卡片整体宽度不超过90%，避免内容溢出。
+5.卡片padding为24px。
 6.添加轻微的纹理或图案作为背景，增强纸张质感。
 
 卡片结构：
@@ -168,79 +168,6 @@ ${processedLyrics}
 
 // 生成备用卡片HTML
 const generateFallbackCard = (lyrics: string) => {
-  // 简单的繁体转换
-  const simplifiedToTraditional = (text: string) => {
-    const map: Record<string, string> = {
-      '东': '東', '为': '為', '义': '義', '乐': '樂', '习': '習',
-      '书': '書', '云': '雲', '产': '產', '亚': '亞', '从': '從',
-      '仅': '僅', '价': '價', '众': '眾', '优': '優', '们': '們',
-      '会': '會', '体': '體', '党': '黨', '关': '關', '兴': '興',
-      '写': '寫', '农': '農', '冻': '凍', '净': '淨', '准': '準', 
-      '减': '減', '凤': '鳳', '几': '幾', '击': '擊', '动': '動', 
-      '务': '務', '勋': '勳', '单': '單', '发': '發', '变': '變', 
-      '只': '只', '台': '臺', '叶': '葉', '号': '號', '后': '後', 
-      '听': '聽', '周': '週', '响': '響', '唤': '喚', '团': '團', 
-      '国': '國', '图': '圖', '场': '場', '坏': '壞', '块': '塊', 
-      '声': '聲', '复': '復', '备': '備', '头': '頭', '奖': '獎', 
-      '妈': '媽', '娘': '孃', '学': '學', '宁': '寧', '实': '實', 
-      '家': '家', '宽': '寬', '宾': '賓', '对': '對', '寻': '尋', 
-      '导': '導', '层': '層', '岁': '歲', '币': '幣', '师': '師', 
-      '带': '帶', '干': '幹', '广': '廣', '应': '應', '开': '開', 
-      '异': '異', '张': '張', '弹': '彈', '强': '強', '归': '歸', 
-      '当': '當', '录': '錄', '影': '影', '征': '征', '怀': '懷', 
-      '态': '態', '恼': '惱', '恋': '戀', '总': '總', '恶': '惡', 
-      '悬': '懸', '情': '情', '惯': '慣', '惊': '驚', '想': '想', 
-      '意': '意', '感': '感', '愿': '願', '战': '戰', '戏': '戲',
-      '戴': '戴', '户': '戶', '房': '房', '所': '所', '扑': '撲',
-      '执': '執', '护': '護', '担': '擔', '择': '擇', '拟': '擬', 
-      '拥': '擁', '拼': '拚', '持': '持', '挂': '掛', '指': '指', 
-      '挥': '揮', '损': '損', '换': '換', '据': '據', '摄': '攝', 
-      '摆': '擺', '摇': '搖', '无': '無', '时': '時', '显': '顯', 
-      '晓': '曉', '晕': '暈', '晚': '晚', '晰': '晰', '暂': '暫', 
-      '曲': '曲', '最': '最', '月': '月', '有': '有', '朱': '朱', 
-      '机': '機', '杀': '殺', '来': '來', '杨': '楊', '极': '極', 
-      '构': '構', '标': '標', '样': '樣', '气': '氣', '汤': '湯', 
-      '没': '沒', '决': '決', '沟': '溝', '况': '況', '温': '溫', 
-      '游': '游', '满': '滿', '滨': '濱', '热': '熱', '焕': '煥', 
-      '爱': '愛', '爷': '爺', '状': '狀', '独': '獨', '狮': '獅', 
-      '环': '環', '现': '現', '球': '球', '理': '理', '琼': '瓊', 
-      '电': '電', '画': '畫', '痴': '癡', '皱': '皺', '盘': '盤',
-      '确': '確', '碍': '礙', '种': '種', '稳': '穩', '穷': '窮',
-      '竞': '競', '笔': '筆', '筑': '築', '签': '簽', '简': '簡',
-      '类': '類', '粮': '糧', '系': '系', '级': '級', '纪': '紀',
-      '约': '約', '纲': '綱', '纳': '納', '纯': '純', '纵': '縱',
-      '练': '練', '终': '終', '经': '經', '绘': '繪', '给': '給',
-      '网': '網', '罗': '羅', '罚': '罰', '美': '美', '翻': '翻',
-      '职': '職', '联': '聯', '肤': '膚', '胜': '勝', '脏': '臟',
-      '脑': '腦', '脸': '臉', '腾': '騰', '自': '自', '舰': '艦',
-      '艺': '藝', '节': '節', '芬': '芬', '花': '花', '苏': '蘇',
-      '范': '範', '荐': '薦', '获': '獲', '莱': '萊', '萨': '薩',
-      '营': '營', '药': '藥', '落': '落', '虑': '慮', '虚': '虛',
-      '补': '補', '袭': '襲', '见': '見', '观': '觀', '规': '規',
-      '视': '視', '览': '覽', '觉': '覺', '角': '角', '触': '觸',
-      '计': '計', '让': '讓', '记': '記', '设': '設', '许': '許', 
-      '证': '證', '评': '評', '识': '識', '词': '詞', '试': '試', 
-      '说': '說', '请': '請', '读': '讀', '课': '課', '谁': '誰', 
-      '调': '調', '论': '論', '财': '財', '贝': '貝', '责': '責', 
-      '贴': '貼', '资': '資', '输': '輸', '达': '達', '过': '過', 
-      '远': '遠', '进': '進', '运': '運', '这': '這', '连': '連', 
-      '逻': '邏', '邮': '郵', '邻': '鄰', '采': '採', '释': '釋', 
-      '里': '裡', '钟': '鐘', '钱': '錢', '铁': '鐵', '银': '銀', 
-      '链': '鏈', '销': '銷', '锁': '鎖', '锋': '鋒', '锦': '錦', 
-      '长': '長', '门': '門', '闪': '閃', '问': '問', '闲': '閒', 
-      '间': '間', '队': '隊', '难': '難', '雇': '僱', '静': '靜', 
-      '颖': '穎', '风': '風', '飞': '飛', '养': '養', '馆': '館', 
-      '驰': '馳', '驱': '驅', '驶': '駛', '验': '驗', '鱼': '魚', 
-      '鲁': '魯', '鲜': '鮮', '鸟': '鳥', '鸡': '雞', '鸿': '鴻', 
-      '鹏': '鵬', '麦': '麥', '黄': '黃', '齐': '齊', '齿': '齒', 
-      '龄': '齡', '龙': '龍'
-    };
-    
-    return [...text].map(char => map[char] || char).join('');
-  };
-  
-  const traditionalLyrics = simplifiedToTraditional(lyrics);
-  
   // 创建一个简单的英文转换 (这只是一个非常基础的模拟)
   const generateEnglishTranslation = (text: string) => {
     // 这里只是一个非常简单的模拟
@@ -259,7 +186,7 @@ const generateFallbackCard = (lyrics: string) => {
   <div style="font-family: 'Microsoft YaHei', 'SimSun', sans-serif; background-color: #fff; color: #333; padding: 20px; border-radius: 10px; width: 90%; max-width: 600px; margin: 0 auto; box-shadow: 0 8px 30px rgba(0,0,0,0.1); position: relative; overflow: hidden; background-image: url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;100&quot; height=&quot;100&quot; opacity=&quot;0.05&quot;><rect x=&quot;0&quot; y=&quot;0&quot; width=&quot;100&quot; height=&quot;100&quot; fill=&quot;none&quot; stroke=&quot;%23${cardColor.slice(1)}&quot; stroke-width=&quot;1&quot;/></svg>');">
     <div style="position: absolute; top: 0; left: 0; right: 0; height: 5px; background: linear-gradient(90deg, ${cardColor}88, ${cardColor}55);"></div>
     
-    <h1 style="font-size: 24px; text-align: center; margin-bottom: 15px; color: ${cardColor}; font-weight: bold; word-break: break-word;">${traditionalLyrics}</h1>
+    <h1 style="font-size: 24px; text-align: center; margin-bottom: 15px; color: ${cardColor}; font-weight: bold; word-break: break-word;">${lyrics}</h1>
     
     <p style="font-size: 16px; text-align: center; margin-bottom: 20px; font-style: italic; color: #666;">${generateEnglishTranslation(lyrics)}</p>
     
@@ -362,7 +289,7 @@ const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
 const fixHtmlContent = (html: string) => {
   // 如果内容不是HTML格式，将其包装为HTML
   if (!html.trim().startsWith('<')) {
-    return `<div style="font-family: 'Microsoft YaHei', sans-serif; line-height: 1.6; color: #333; max-width: 100%; overflow-wrap: break-word;">${html}</div>`;
+    return `<div style="font-family: 'Microsoft YaHei', sans-serif; line-height: 1.6; color: #333; width: 100%; overflow-wrap: break-word;">${html}</div>`;
   }
   
   // 确保HTML有基本样式
@@ -397,23 +324,81 @@ const downloadCard = async () => {
     }
     
     console.log('开始生成图片...');
-    const canvas = await html2canvas(container as HTMLElement, {
+    
+    // 首先克隆容器并设置手机屏幕宽度
+    const cloneContainer = container.cloneNode(true) as HTMLElement;
+    document.body.appendChild(cloneContainer);
+    
+    // 设置克隆元素的样式，使其不可见但保持原始布局
+    cloneContainer.style.position = 'absolute';
+    cloneContainer.style.top = '-9999px';
+    cloneContainer.style.width = '320px'; // 修改为更窄的手机宽度
+    cloneContainer.style.maxWidth = '320px';
+    cloneContainer.style.overflow = 'hidden';
+    cloneContainer.style.transformOrigin = 'top left';
+    
+    // 等待一会儿让布局渲染完成
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // 获取原始容器在手机上的宽度
+    const mobileWidth = 320;
+    const mobileHeight = cloneContainer.scrollHeight;
+    
+    console.log('手机视图尺寸:', mobileWidth, 'x', mobileHeight);
+    
+    // 使用html2canvas渲染克隆的容器
+    const canvas = await html2canvas(cloneContainer, {
       scale: 2, // 提高清晰度
       useCORS: true,
       logging: true,
-      backgroundColor: null,
+      backgroundColor: '#FFFFFF',
+      width: mobileWidth,
+      height: mobileHeight,
       onclone: (doc) => {
-        console.log('HTML克隆完成');
+        console.log('HTML克隆完成，高度:', mobileHeight);
       }
     });
+    
+    // 移除克隆的元素
+    document.body.removeChild(cloneContainer);
     
     console.log('图片生成完成，准备下载');
     // 创建下载链接
     const link = document.createElement('a');
     link.download = `lyrics-card-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
     
+    // 获取canvas数据
+    const imgData = canvas.toDataURL('image/png');
+    
+    // 创建新图像以处理最终输出
+    const finalImg = new Image();
+    finalImg.src = imgData;
+    
+    finalImg.onload = () => {
+      // 确保输出图像与手机屏幕比例相同
+      const outputCanvas = document.createElement('canvas');
+      
+      // 使用与手机屏幕相同的比例
+      const outputWidth = 320 * 2; // 640px (高DPI)
+      const outputHeight = mobileHeight * 2;
+      
+      outputCanvas.width = outputWidth;
+      outputCanvas.height = outputHeight;
+      
+      const ctx = outputCanvas.getContext('2d');
+      if (ctx) {
+        // 绘制白色背景
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, outputWidth, outputHeight);
+        
+        // 直接绘制图像，保持原始尺寸和位置
+        ctx.drawImage(finalImg, 0, 0, outputWidth, outputHeight);
+        
+        // 下载最终图像
+        link.href = outputCanvas.toDataURL('image/png');
+        link.click();
+      }
+    };
   } catch (error) {
     console.error('下载图片失败:', error);
     alert('保存失敗，請重試：' + (error instanceof Error ? error.message : '未知錯誤'));

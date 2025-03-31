@@ -129,7 +129,7 @@ const themeClass = computed(() => {
 })
 
 const INIT_MESSAGE = computed(() => {
-  return `下面是一些签筒，筒外是歌名，筒里装着的是这歌某句歌词的签。\n可以推拉把手控制歌词。\n出现"${hotWord.value}"字的话这签会断掉，不能再推拉了！\n断${MAX_BROKEN_SCROLLS_COUNT}支签后游戏结束，拉出的歌词越多越厉害！`
+  return `下面是一些签筒，筒外是歌名，筒里装着的是这歌某句歌词的签。\n可以推拉把手控制歌词。\n出现"${hotWord.value}"字的话这签会断掉，不能再推拉了！\n断${MAX_BROKEN_SCROLLS_COUNT}支签后游戏结束（点击歌词有惊喜），拉出的歌词越多越厉害！`
 })
 
 // 拖动减速系数，值越小拖动越慢
