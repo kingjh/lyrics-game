@@ -242,7 +242,7 @@ const loadSongs = async () => {
     return new Promise<void>((resolve, reject) => {
       worker.onmessage = (e) => {
         const filteredSongs = e.data as Song[]
-        songs.value = shuffleArray(filteredSongs).slice(0, 8)
+        songs.value = shuffleArray(filteredSongs).slice(0, 10)
         createScrolls()
         resolve()
       }
@@ -498,7 +498,7 @@ onBeforeUnmount(() => {
   max-width: 500px;
   padding: 15px;
   border-radius: 12px;
-  max-height: calc(100vh - 220px);
+  height: calc(100vh - 220px);
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
@@ -571,7 +571,7 @@ onBeforeUnmount(() => {
   .scrolls-container {
     padding: 12px;
     gap: 10px;
-    max-height: calc(100vh - 180px);
+    height: calc(100vh - 180px);
   }
   
   .v-container {
