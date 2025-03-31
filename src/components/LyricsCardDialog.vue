@@ -27,13 +27,14 @@
       </v-card-text>
       
       <v-card-actions class="justify-center pb-4">
-        <v-btn :color="themeColor" @click="downloadCard">
+        <v-btn :color="themeColor" @click="downloadCard" :disabled="isLoading">
           保存圖片
         </v-btn>
         <v-btn 
           :color="themeClass === 'red-theme' ? 'error' : 'secondary'" 
           @click="$emit('update:modelValue', false)" 
           class="ml-2"
+          :disabled="isLoading"
         >
           關閉
         </v-btn>
@@ -74,6 +75,22 @@ const emit = defineEmits(['update:modelValue'])
 
 const isLoading = ref(true)
 const htmlContent = ref('')
+// 添加緩存對象來存儲生成過的歌詞卡片
+const lyricsCache = ref(new Map())
+// 緩存大小限制
+const MAX_CACHE_SIZE = 20
+
+// 添加緩存管理函數
+const addToCache = (key: string, value: string) => {
+  // 如果緩存已滿，刪除最早添加的項目
+  if (lyricsCache.value.size >= MAX_CACHE_SIZE) {
+    const firstKey = lyricsCache.value.keys().next().value
+    lyricsCache.value.delete(firstKey)
+    console.log('緩存已滿，刪除最早項目:', firstKey)
+  }
+  // 添加新項目到緩存
+  lyricsCache.value.set(key, value)
+}
 
 // 监听弹窗和歌词变化
 watch(
@@ -114,6 +131,16 @@ const generateLyricsCard = async () => {
     }
     
     console.log('处理后的完整歌词:', processedLyrics)
+    
+    // 檢查緩存中是否已有該歌詞卡片
+    // 使用歌詞+主題作為緩存鍵，這樣可以處理同一歌詞在不同主題下的情況
+    const cacheKey = `${processedLyrics}_${props.themeClass}`
+    if (lyricsCache.value.has(cacheKey)) {
+      console.log('從緩存中獲取歌詞卡片')
+      htmlContent.value = lyricsCache.value.get(cacheKey)
+      isLoading.value = false
+      return
+    }
     
     // 尝试从processedLyrics中提取歌名和歌词部分，确保不截断歌词
     let songName = ""
@@ -162,7 +189,7 @@ const generateLyricsCard = async () => {
 6.添加轻微的纹理或图案作为背景，增强纸张质感。
 
 卡片结构：
-1.顶部显示提供的歌词片段
+1.顶部显示且只显示提供的歌词片段
 2.中间是对歌词片段的英文翻译或诠释（要有诗意和押韵感）
 3.主体内容为对歌词深层含义的拆解(150字以内的故事，引用著名文学或影视作品）
 
@@ -177,6 +204,9 @@ ${fullLyrics}
       const htmlData = await requestGeminiHTML(prompt)
       console.log('获取到HTML数据，长度:', htmlData.length)
       
+      // 將生成的卡片緩存起來
+      addToCache(cacheKey, htmlData)
+      
       // 延迟一点设置HTML内容，确保DOM已经准备好
       setTimeout(() => {
         htmlContent.value = htmlData
@@ -186,6 +216,8 @@ ${fullLyrics}
       console.error('API请求失败，使用备用卡片:', apiError)
       // 使用备用方案生成简单的卡片
       const fallbackHtml = generateFallbackCard(processedLyrics)
+      // 也將備用卡片緩存起來
+      addToCache(cacheKey, fallbackHtml)
       htmlContent.value = fallbackHtml
     }
     
@@ -239,7 +271,7 @@ const generateFallbackCard = (lyrics: string) => {
 const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
   try {
     console.log('发送Gemini请求...尝试次数:', retryCount + 1)
-    const url = `https://dsai.cfworker.cfd/`
+    const url = `https://gai.cfworker.cfd?model=gemini-2.0-flash-thinking-exp-01-21`
     
     // 確保prompt沒有被截斷
     console.log('Prompt總長度:', prompt.length)
@@ -247,17 +279,13 @@ const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
     console.log('Prompt最後100個字符:', prompt.substring(prompt.length - 100))
     
     const data = {
-      site: 'huoshan',
-      messages: [
-        {
-          role: 'system',
-          content: '你是文学大师，精通古今中外、书本、影视作品里的所有文学，精通著名人物的写作、语言、表演风格',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        responseMimeType: 'text/plain',
+      },
     }
     
     console.log('请求数据:', JSON.stringify(data))
@@ -271,26 +299,32 @@ const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
     console.log('API响应:', response.data)
     
     if (response.data && 
-        response.data.choices && 
-        response.data.choices[0] && 
-        response.data.choices[0].message && 
-        response.data.choices[0].message.content) {
+        response.data.candidates && 
+        response.data.candidates[0] && 
+        response.data.candidates[0].content && 
+        response.data.candidates[0].content.parts) {
       
-      const content = response.data.choices[0].message.content;
-      console.log('找到文本部分:', content.substring(0, 100) + '...')
+      // 查找text部分的HTML内容
+      const textPart = response.data.candidates[0].content.parts.find((part: any) => part.text);
       
-      // 从文本中提取HTML代码
-      const htmlMatch = content.match(/```html\s*([\s\S]*?)\s*```/);
-      if (htmlMatch && htmlMatch[1]) {
-        console.log('提取到HTML代码')
-        return fixHtmlContent(htmlMatch[1].trim());
+      if (textPart && textPart.text) {
+        console.log('找到文本部分:', textPart.text.substring(0, 100) + '...')
+        
+        // 从文本中提取HTML代码
+        const htmlMatch = textPart.text.match(/```html\s*([\s\S]*?)\s*```/);
+        if (htmlMatch && htmlMatch[1]) {
+          console.log('提取到HTML代码')
+          return fixHtmlContent(htmlMatch[1].trim());
+        } else {
+          // 可能是纯HTML，不包含markdown代码块
+          console.log('未找到HTML代码块，使用原始文本')
+          return fixHtmlContent(textPart.text);
+        }
       } else {
-        // 可能是纯HTML，不包含markdown代码块
-        console.log('未找到HTML代码块，使用原始文本')
-        return fixHtmlContent(content);
+        throw new Error('API返回中未找到HTML数据')
       }
     } else {
-      throw new Error('API返回中未找到HTML数据')
+      throw new Error('API返回格式不正确')
     }
   } catch (error: any) {
     console.error('API请求失败:', error)
@@ -381,8 +415,14 @@ const downloadCard = async () => {
     cloneContainer.style.maxWidth = '320px';
     cloneContainer.style.overflow = 'hidden';
     cloneContainer.style.transformOrigin = 'top left';
-    cloneContainer.style.padding = '0'; // 移除padding
     cloneContainer.style.margin = '0'; // 确保没有margin
+    
+    // 为内部内容添加padding
+    const contentDiv = cloneContainer.querySelector('div');
+    if (contentDiv) {
+      contentDiv.style.padding = '24px 20px';
+      contentDiv.style.boxSizing = 'border-box';
+    }
     
     // 等待一会儿让布局渲染完成
     await new Promise(resolve => setTimeout(resolve, 100));
