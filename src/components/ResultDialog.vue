@@ -65,6 +65,7 @@
   <lyrics-card-dialog
     v-model="showLyricsCardDialog"
     :lyrics="selectedLyrics"
+    :full-song-lyrics="fullSongLyrics"
     :theme-color="themeColor"
     :theme-class="themeClass"
   />
@@ -129,6 +130,7 @@ const emit = defineEmits(['update:modelValue', 'restart'])
 // 歌词卡片相关
 const showLyricsCardDialog = ref(false)
 const selectedLyrics = ref('')
+const fullSongLyrics = ref('')
 
 // 监听selectedLyrics变化，确保有内容时才打开弹窗
 watch(selectedLyrics, (newValue) => {
@@ -142,36 +144,38 @@ const showLyricsCard = async (index: number, songName: string) => {
   try {
     // 获取最完整的歌词
     const scroll = props.brokenScrolls[index]
-    let fullLyric = ''
+    let fragmentLyric = ''
+    let completeLyric = ''
     
-    // 首先尝试使用完整歌词
-    if (scroll && scroll.lyrics) {
-      fullLyric = scroll.lyrics
-      console.log('使用完整歌詞:', fullLyric)
+    // 首先尝试使用完整歌词（如果存在）
+    if (scroll && scroll.fullLyrics) {
+      completeLyric = scroll.fullLyrics
+      fragmentLyric = props.collectedLyrics[index] || '' // 使用收集的部分歌词作为片段
+      console.log('使用完整歌詞:', completeLyric)
     } 
     // 其次尝试使用歌名搜索歌词（这里只是示例）
     else if (songName && songName.length > 0) {
       console.log('嘗試使用歌名:', songName)
-      fullLyric = `${songName} - ${props.collectedLyrics[index] || ''}`
+      fragmentLyric = `${songName} - ${props.collectedLyrics[index] || ''}`
+      // 没有完整歌词，只能使用片段
+      completeLyric = fragmentLyric 
     } 
     // 最后使用收集的部分歌词
     else {
-      fullLyric = props.collectedLyrics[index] || ''
-      console.log('只能使用部分歌詞:', fullLyric)
+      fragmentLyric = props.collectedLyrics[index] || ''
+      completeLyric = fragmentLyric // 没有完整歌词，只能使用片段
+      console.log('只能使用部分歌詞:', fragmentLyric)
     }
     
-    if (!fullLyric) {
+    if (!fragmentLyric) {
       throw new Error('無法獲取歌詞')
     }
     
-    // 确保内容长度适中(避免太短)
-    if (fullLyric.length < 10 && props.collectedLyrics[index]) {
-      // 如果太短，添加歌名作为补充
-      fullLyric = `${songName || ''} - ${props.collectedLyrics[index]}`
-    }
+    console.log('片段歌詞:', fragmentLyric)
+    console.log('完整歌詞:', completeLyric)
     
-    console.log('最終使用的歌詞:', fullLyric)
-    selectedLyrics.value = fullLyric
+    selectedLyrics.value = fragmentLyric // 设置片段歌词
+    fullSongLyrics.value = completeLyric // 设置完整歌词
     showLyricsCardDialog.value = true
     console.log('showLyricsCardDialog设置为:', showLyricsCardDialog.value)
     

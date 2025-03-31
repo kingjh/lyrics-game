@@ -55,6 +55,10 @@ const props = defineProps({
     type: String,
     required: true
   },
+  fullSongLyrics: {
+    type: String,
+    default: ''
+  },
   themeColor: {
     type: String,
     default: 'primary'
@@ -115,10 +119,44 @@ const generateLyricsCard = async () => {
     
     console.log('处理后的完整歌词:', processedLyrics)
     
+    // 尝试从processedLyrics中提取歌名和歌词部分
+    let songName = ""
+    let lyricsFragment = processedLyrics
+    let fullLyrics = processedLyrics
+    let completeSongLyrics = props.fullSongLyrics ? props.fullSongLyrics.trim() : ""
+    
+    // 如果内容包含 " - "，可能是 "歌名 - 歌词" 的格式
+    if (processedLyrics.includes(' - ')) {
+      const parts = processedLyrics.split(' - ')
+      songName = parts[0].trim()
+      lyricsFragment = parts[1].trim()
+      
+      // 创建更加结构化的提示，清晰表明这是歌词片段
+      fullLyrics = `【歌曲名】${songName}\n【歌词片段】"${lyricsFragment}"`
+      
+      // 如果有完整歌词，则添加
+      if (completeSongLyrics) {
+        fullLyrics += `\n\n【完整歌词】\n${completeSongLyrics}`
+      }
+      
+      fullLyrics += `\n\n这是歌曲《${songName}》中的一段歌词，请基于这段歌词的意境创作卡片。`
+    } else {
+      // 如果没有明确的歌名-歌词格式，提示这是一段歌词
+      fullLyrics = `【歌词片段】"${processedLyrics}"`
+      
+      // 如果有完整歌词，则添加
+      if (completeSongLyrics) {
+        fullLyrics += `\n\n【完整歌词】\n${completeSongLyrics}`
+      }
+      
+      fullLyrics += `\n\n这是一首歌中的一段歌词，请基于这段歌词的意境创作卡片。`
+    }
+    
     const prompt = `
 初始化：
-根据用户输入的话题，先把话题翻译成英文，然后用150字以内的故事（引用著名文学或影视作品）拆解其中的深层含义。
-然后用HTML创建一个优雅的文字卡片表现这个话题。
+根据用户输入的歌词内容，先把歌词的核心主题翻译成英文（要有押韵感），然后用150字以内的故事（引用著名文学或影视作品）拆解歌词中的深层含义和情感。
+然后用HTML创建一个优雅的文字卡片表现这段歌词的意境。
+
 设计要求：
 1.所有輸出的中文必須爲繁體中文，禁止使用簡體中文。
 2.主题字体不要超过24px大小，正文使用16px左右。
@@ -128,13 +166,13 @@ const generateLyricsCard = async () => {
 6.添加轻微的纹理或图案作为背景，增强纸张质感。
 
 卡片结构：
-1.顶部用户输入的话题
-2.中间用户输入话题的英文翻译，要押韵
-3.主体内容为对话题深层含义的拆解(150字以内的故事，引用著名文学或影视作品）
+1.顶部显示提供的歌词片段
+2.中间是对歌词片段的英文翻译或诠释（要有诗意和押韵感）
+3.主体内容为对歌词深层含义的拆解(150字以内的故事，引用著名文学或影视作品）
 
-用户话题为：
+重要说明：我已提供了歌词片段和完整歌词（如有）。请务必综合考虑整首歌的上下文和情感，避免仅基于片段做出片面理解。在创作时注重表达歌词的整体意境和情感。以下是内容：
 """ 
-${processedLyrics}
+${fullLyrics}
 """
 `
     
@@ -325,6 +363,10 @@ const downloadCard = async () => {
     
     console.log('开始生成图片...');
     
+    // 检测是否在微信浏览器中
+    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+    console.log('是否在微信浏览器中:', isWechat);
+    
     // 首先克隆容器并设置手机屏幕宽度
     const cloneContainer = container.cloneNode(true) as HTMLElement;
     document.body.appendChild(cloneContainer);
@@ -363,9 +405,6 @@ const downloadCard = async () => {
     document.body.removeChild(cloneContainer);
     
     console.log('图片生成完成，准备下载');
-    // 创建下载链接
-    const link = document.createElement('a');
-    link.download = `lyrics-card-${Date.now()}.png`;
     
     // 获取canvas数据
     const imgData = canvas.toDataURL('image/png');
@@ -394,9 +433,56 @@ const downloadCard = async () => {
         // 直接绘制图像，保持原始尺寸和位置
         ctx.drawImage(finalImg, 0, 0, outputWidth, outputHeight);
         
-        // 下载最终图像
-        link.href = outputCanvas.toDataURL('image/png');
-        link.click();
+        const finalImgData = outputCanvas.toDataURL('image/png');
+        
+        if (isWechat) {
+          // 微信浏览器处理方式：创建一个新的图片全屏显示，并提示长按保存
+          const overlay = document.createElement('div');
+          overlay.style.position = 'fixed';
+          overlay.style.top = '0';
+          overlay.style.left = '0';
+          overlay.style.width = '100%';
+          overlay.style.height = '100%';
+          overlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+          overlay.style.zIndex = '9999';
+          overlay.style.display = 'flex';
+          overlay.style.flexDirection = 'column';
+          overlay.style.alignItems = 'center';
+          overlay.style.justifyContent = 'center';
+          
+          const imgElement = document.createElement('img');
+          imgElement.src = finalImgData;
+          imgElement.style.maxWidth = '90%';
+          imgElement.style.maxHeight = '70%';
+          imgElement.style.objectFit = 'contain';
+          
+          const tipElement = document.createElement('div');
+          tipElement.textContent = '請長按圖片保存';
+          tipElement.style.color = 'white';
+          tipElement.style.fontSize = '16px';
+          tipElement.style.marginTop = '20px';
+          
+          const closeButton = document.createElement('button');
+          closeButton.textContent = '關閉';
+          closeButton.style.marginTop = '20px';
+          closeButton.style.padding = '8px 20px';
+          closeButton.style.backgroundColor = '#ffffff';
+          closeButton.style.border = 'none';
+          closeButton.style.borderRadius = '4px';
+          closeButton.style.color = '#333';
+          closeButton.onclick = () => document.body.removeChild(overlay);
+          
+          overlay.appendChild(imgElement);
+          overlay.appendChild(tipElement);
+          overlay.appendChild(closeButton);
+          document.body.appendChild(overlay);
+        } else {
+          // 非微信浏览器使用常规下载方式
+          const link = document.createElement('a');
+          link.download = `lyrics-card-${Date.now()}.png`;
+          link.href = finalImgData;
+          link.click();
+        }
       }
     };
   } catch (error) {

@@ -100,11 +100,13 @@ import { useRoute, useRouter } from 'vue-router'
 interface Song {
   name: string;
   lyrics: string;
+  fullLyrics?: string;
 }
 
 interface Scroll {
   name: string;
   lyrics: string;
+  fullLyrics?: string;
   width: number;
   maxWidth: number;
   isBroken: boolean;
@@ -211,9 +213,13 @@ const loadSongs = async () => {
                 return null;
               }
               
+              // 构建整首歌的完整歌词
+              const fullLyrics = song.parsedLyrics.join('\\n');
+              
               return {
                 name: song.name.trim(),
-                lyrics: foundLyric.trim()
+                lyrics: foundLyric.trim(),
+                fullLyrics: fullLyrics // 添加完整歌词
               };
             })
             .filter(song => song !== null) // 过滤掉没有热字的歌
@@ -268,6 +274,7 @@ const createScrolls = () => {
   scrolls.value = songs.value.map((song, index) => ({
     name: song.name,
     lyrics: song.lyrics,
+    fullLyrics: song.fullLyrics || song.lyrics,
     width: INIT_WIDTH,
     maxWidth: screen.width - remToPx(2),
     isBroken: false,
