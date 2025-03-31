@@ -508,6 +508,8 @@ onBeforeUnmount(() => {
   perspective: 1000px;
   contain: content;
   content-visibility: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 20px; /* 添加底部padding确保内容不会被遮挡 */
 }
 
 .scrolls-container.purple-theme {
@@ -572,6 +574,7 @@ onBeforeUnmount(() => {
     padding: 12px;
     gap: 10px;
     height: calc(100vh - 180px);
+    padding-bottom: 20px; /* 确保在移动设备上也有底部padding */
   }
   
   .v-container {

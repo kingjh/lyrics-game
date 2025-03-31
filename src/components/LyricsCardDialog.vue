@@ -381,7 +381,8 @@ const downloadCard = async () => {
     cloneContainer.style.maxWidth = '320px';
     cloneContainer.style.overflow = 'hidden';
     cloneContainer.style.transformOrigin = 'top left';
-    cloneContainer.style.padding = '0 20px'; // 增加左右padding，特别是右侧padding
+    cloneContainer.style.padding = '0'; // 移除padding
+    cloneContainer.style.margin = '0'; // 确保没有margin
     
     // 等待一会儿让布局渲染完成
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -434,7 +435,7 @@ const downloadCard = async () => {
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, outputWidth, outputHeight);
         
-        // 直接绘制图像，保持原始尺寸和位置，添加20px的右边距
+        // 直接绘制图像，保持原始尺寸和位置，不添加额外边距
         ctx.drawImage(finalImg, 0, 0, outputWidth, outputHeight);
         
         const finalImgData = outputCanvas.toDataURL('image/png');
