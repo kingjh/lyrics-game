@@ -133,7 +133,7 @@ const INIT_MESSAGE = computed(() => {
 })
 
 // 拖动减速系数，值越小拖动越慢
-const dragSpeedFactor = 0.4
+const dragSpeedFactor = 0.7
 
 // 状态
 const songs = ref<Song[]>([])

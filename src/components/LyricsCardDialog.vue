@@ -341,8 +341,8 @@ const downloadCard = async () => {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     // 获取原始容器在手机上的宽度
-    const mobileWidth = 320;
-    const mobileHeight = cloneContainer.scrollHeight;
+    const mobileWidth = cloneContainer.clientWidth;
+    const mobileHeight = cloneContainer.clientHeight;
     
     console.log('手机视图尺寸:', mobileWidth, 'x', mobileHeight);
     
@@ -379,7 +379,7 @@ const downloadCard = async () => {
       const outputCanvas = document.createElement('canvas');
       
       // 使用与手机屏幕相同的比例
-      const outputWidth = 320 * 2; // 640px (高DPI)
+      const outputWidth = mobileWidth * 2; // 640px (高DPI)
       const outputHeight = mobileHeight * 2;
       
       outputCanvas.width = outputWidth;
