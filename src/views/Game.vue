@@ -356,7 +356,7 @@ const breakScroll = (index: number) => {
   scrolls.value[index].isBroken = true
   brokenScrolls.value.push(scroll)
   brokenCount.value++
-  collectedLyrics.value.push(scroll.visibleText) // 已经转换过空格的文本
+  collectedLyrics.value.push(scroll.lyrics) // 已经转换过空格的文本
   
   checkGameOver()
 }

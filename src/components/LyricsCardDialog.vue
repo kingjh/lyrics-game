@@ -2,12 +2,13 @@
   <v-dialog 
     :model-value="modelValue" 
     @update:model-value="$emit('update:modelValue', $event)"
-    max-width="90vw"
-    max-height="90vh"
+    width="100%"
+    height="100%"
+    fullscreen
     persistent
     :class="['lyrics-card-dialog', themeClass]"
   >
-    <v-card :class="['lyrics-card', themeClass]">
+    <v-card :class="['lyrics-card', themeClass]" style="height: 100%;">
       <v-card-title :class="['text-h5', 'text-center', themeClass]">
         歌詞卡片
       </v-card-title>
@@ -104,7 +105,7 @@ const generateLyricsCard = async () => {
       throw new Error('歌词内容为空')
     }
     
-    // 处理歌词文本，确保格式合适
+    // 处理歌词文本，确保格式合适，不截断歌词
     let processedLyrics = props.lyrics.trim()
     
     // 如果歌词太短，可能不够有意义
@@ -112,14 +113,9 @@ const generateLyricsCard = async () => {
       console.warn('歌词内容过短，可能无法生成良好结果')
     }
     
-    // 如果歌词太长，可能会导致生成问题，但不截断
-    if (processedLyrics.length > 100) {
-      console.warn('歌词内容过长，但不截断')
-    }
-    
     console.log('处理后的完整歌词:', processedLyrics)
     
-    // 尝试从processedLyrics中提取歌名和歌词部分
+    // 尝试从processedLyrics中提取歌名和歌词部分，确保不截断歌词
     let songName = ""
     let lyricsFragment = processedLyrics
     let fullLyrics = processedLyrics
@@ -129,7 +125,7 @@ const generateLyricsCard = async () => {
     if (processedLyrics.includes(' - ')) {
       const parts = processedLyrics.split(' - ')
       songName = parts[0].trim()
-      lyricsFragment = parts[1].trim()
+      lyricsFragment = parts.slice(1).join(' - ').trim() // 确保取得完整歌词，不会因为歌词中也有 " - " 而截断
       
       // 创建更加结构化的提示，清晰表明这是歌词片段
       fullLyrics = `【歌曲名】${songName}\n【歌词片段】"${lyricsFragment}"`
@@ -363,9 +359,18 @@ const downloadCard = async () => {
     
     console.log('开始生成图片...');
     
-    // 检测是否在微信浏览器中
+    // 检测浏览器环境
     const isWechat = /MicroMessenger/i.test(navigator.userAgent);
-    console.log('是否在微信浏览器中:', isWechat);
+    const isIOS = /(iPhone|iPad|iPod)/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isMobile = isIOS || isAndroid;
+    
+    console.log('浏览器环境:', { 
+      isWechat, 
+      isIOS, 
+      isAndroid, 
+      isMobile 
+    });
     
     // 首先克隆容器并设置手机屏幕宽度
     const cloneContainer = container.cloneNode(true) as HTMLElement;
@@ -378,6 +383,7 @@ const downloadCard = async () => {
     cloneContainer.style.maxWidth = '320px';
     cloneContainer.style.overflow = 'hidden';
     cloneContainer.style.transformOrigin = 'top left';
+    cloneContainer.style.padding = '0 20px'; // 增加左右padding，特别是右侧padding
     
     // 等待一会儿让布局渲染完成
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -430,13 +436,13 @@ const downloadCard = async () => {
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, outputWidth, outputHeight);
         
-        // 直接绘制图像，保持原始尺寸和位置
+        // 直接绘制图像，保持原始尺寸和位置，添加20px的右边距
         ctx.drawImage(finalImg, 0, 0, outputWidth, outputHeight);
         
         const finalImgData = outputCanvas.toDataURL('image/png');
         
-        if (isWechat) {
-          // 微信浏览器处理方式：创建一个新的图片全屏显示，并提示长按保存
+        // 通用预览和保存方法 - 在所有设备上都使用此方法
+        const showPreviewOverlay = () => {
           const overlay = document.createElement('div');
           overlay.style.position = 'fixed';
           overlay.style.top = '0';
@@ -453,18 +459,31 @@ const downloadCard = async () => {
           const imgElement = document.createElement('img');
           imgElement.src = finalImgData;
           imgElement.style.maxWidth = '90%';
-          imgElement.style.maxHeight = '70%';
+          imgElement.style.maxHeight = '80%';
           imgElement.style.objectFit = 'contain';
+          imgElement.style.padding = '0 20px'; // 确保图片左右有内边距
           
           const tipElement = document.createElement('div');
-          tipElement.textContent = '請長按圖片保存';
+          
+          if (isWechat || isMobile) {
+            tipElement.textContent = '請長按圖片保存到相冊';
+          } else {
+            tipElement.textContent = '右鍵點擊圖片，選擇"圖片另存為..."保存';
+          }
+          
           tipElement.style.color = 'white';
           tipElement.style.fontSize = '16px';
           tipElement.style.marginTop = '20px';
+          tipElement.style.textAlign = 'center';
           
+          const buttonContainer = document.createElement('div');
+          buttonContainer.style.display = 'flex';
+          buttonContainer.style.gap = '10px';
+          buttonContainer.style.marginTop = '20px';
+          
+          // 关闭按钮
           const closeButton = document.createElement('button');
           closeButton.textContent = '關閉';
-          closeButton.style.marginTop = '20px';
           closeButton.style.padding = '8px 20px';
           closeButton.style.backgroundColor = '#ffffff';
           closeButton.style.border = 'none';
@@ -472,16 +491,56 @@ const downloadCard = async () => {
           closeButton.style.color = '#333';
           closeButton.onclick = () => document.body.removeChild(overlay);
           
+          // 下载按钮 (仅在非移动设备上显示)
+          if (!isMobile) {
+            const downloadButton = document.createElement('button');
+            downloadButton.textContent = '下載圖片';
+            downloadButton.style.padding = '8px 20px';
+            downloadButton.style.backgroundColor = props.themeColor === 'primary' ? '#9575cd' : '#ef5350';
+            downloadButton.style.border = 'none';
+            downloadButton.style.borderRadius = '4px';
+            downloadButton.style.color = '#fff';
+            downloadButton.onclick = () => {
+              try {
+                const link = document.createElement('a');
+                link.download = `lyrics-card-${Date.now()}.png`;
+                link.href = finalImgData;
+                link.click();
+              } catch (error) {
+                console.error('下载按钮点击失败:', error);
+                alert('下載失敗，請嘗試右鍵保存圖片');
+              }
+            };
+            buttonContainer.appendChild(downloadButton);
+          }
+          
+          buttonContainer.appendChild(closeButton);
+          
           overlay.appendChild(imgElement);
           overlay.appendChild(tipElement);
-          overlay.appendChild(closeButton);
+          overlay.appendChild(buttonContainer);
           document.body.appendChild(overlay);
+        };
+        
+        // 尝试直接下载 (桌面浏览器)
+        if (!isMobile && !isWechat) {
+          try {
+            const link = document.createElement('a');
+            link.download = `lyrics-card-${Date.now()}.png`;
+            link.href = finalImgData;
+            link.click();
+            
+            // 即使直接下载成功，也提供预览界面，因为很多浏览器会拦截下载
+            setTimeout(() => {
+              showPreviewOverlay();
+            }, 500);
+          } catch (error) {
+            console.error('自动下载失败，回退到预览模式:', error);
+            showPreviewOverlay();
+          }
         } else {
-          // 非微信浏览器使用常规下载方式
-          const link = document.createElement('a');
-          link.download = `lyrics-card-${Date.now()}.png`;
-          link.href = finalImgData;
-          link.click();
+          // 移动端或微信浏览器直接使用预览界面
+          showPreviewOverlay();
         }
       }
     };
