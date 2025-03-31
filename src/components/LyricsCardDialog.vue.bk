@@ -239,7 +239,7 @@ const generateFallbackCard = (lyrics: string) => {
 const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
   try {
     console.log('发送Gemini请求...尝试次数:', retryCount + 1)
-    const url = `https://dsai.cfworker.cfd/`
+    const url = `https://gai.cfworker.cfd?model=gemini-2.5-pro-exp-03-25`
     
     // 確保prompt沒有被截斷
     console.log('Prompt總長度:', prompt.length)
@@ -247,22 +247,18 @@ const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
     console.log('Prompt最後100個字符:', prompt.substring(prompt.length - 100))
     
     const data = {
-      site: 'huoshan',
-      messages: [
-        {
-          role: 'system',
-          content: '你是文学大师，精通古今中外、书本、影视作品里的所有文学，精通著名人物的写作、语言、表演风格',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        responseMimeType: 'text/plain',
+      },
     }
     
     console.log('请求数据:', JSON.stringify(data))
     const response = await axios.post(url, data, { 
-      timeout: 600000, // 增加到600秒
+      timeout: 120000, // 增加到120秒
       headers: {
         'Content-Type': 'application/json'
       }
@@ -271,26 +267,32 @@ const requestGeminiHTML = async (prompt: string, retryCount = 0) => {
     console.log('API响应:', response.data)
     
     if (response.data && 
-        response.data.choices && 
-        response.data.choices[0] && 
-        response.data.choices[0].message && 
-        response.data.choices[0].message.content) {
+        response.data.candidates && 
+        response.data.candidates[0] && 
+        response.data.candidates[0].content && 
+        response.data.candidates[0].content.parts) {
       
-      const content = response.data.choices[0].message.content;
-      console.log('找到文本部分:', content.substring(0, 100) + '...')
+      // 查找text部分的HTML内容
+      const textPart = response.data.candidates[0].content.parts.find((part: any) => part.text);
       
-      // 从文本中提取HTML代码
-      const htmlMatch = content.match(/```html\s*([\s\S]*?)\s*```/);
-      if (htmlMatch && htmlMatch[1]) {
-        console.log('提取到HTML代码')
-        return fixHtmlContent(htmlMatch[1].trim());
+      if (textPart && textPart.text) {
+        console.log('找到文本部分:', textPart.text.substring(0, 100) + '...')
+        
+        // 从文本中提取HTML代码
+        const htmlMatch = textPart.text.match(/```html\s*([\s\S]*?)\s*```/);
+        if (htmlMatch && htmlMatch[1]) {
+          console.log('提取到HTML代码')
+          return fixHtmlContent(htmlMatch[1].trim());
+        } else {
+          // 可能是纯HTML，不包含markdown代码块
+          console.log('未找到HTML代码块，使用原始文本')
+          return fixHtmlContent(textPart.text);
+        }
       } else {
-        // 可能是纯HTML，不包含markdown代码块
-        console.log('未找到HTML代码块，使用原始文本')
-        return fixHtmlContent(content);
+        throw new Error('API返回中未找到HTML数据')
       }
     } else {
-      throw new Error('API返回中未找到HTML数据')
+      throw new Error('API返回格式不正确')
     }
   } catch (error: any) {
     console.error('API请求失败:', error)
